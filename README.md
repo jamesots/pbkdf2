@@ -12,3 +12,6 @@ Usage
 
     // Generate a 32 byte key using the given password and salt, with 1000 iterations
     var key = gen.generateKey("password", "salt", 1000, 32);
+
+[![Build Status](https://drone.io/github.com/jamesots/pbkdf2/status.png)](https://drone.io/github.com/jamesots/pbkdf2/latest)
+
