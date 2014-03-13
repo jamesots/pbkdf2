@@ -1,0 +1,9 @@
+name: pbkdf2
+version: 0.1.0
+author: James Ots <code@jamesots.com>
+homepage: https://github.com/jamesots/pbkdf2
+description: Implementation of PBKDF2 key derivation function
+dependencies:
+  crypto: ">=0.9.0 <0.10.0"
+dev_dependencies:
+  unittest: ">=0.10.0 <0.11.0"
