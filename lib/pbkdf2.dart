@@ -13,7 +13,7 @@ class PBKDF2 {
 
     var digestSize = hash.convert([1,2,3]).bytes.length;
 
-    if (dkLen > ((2 << 31) - 1) * digestSize) {
+    if (dkLen > (4294967295 /*(2<<31)-1*/) * digestSize) {
       return new Future.error("derived key too long");
     }
 
