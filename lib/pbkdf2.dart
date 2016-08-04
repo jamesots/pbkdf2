@@ -9,9 +9,7 @@ class PBKDF2 {
   PBKDF2({Hash this.hash});
 
   List<int> generateKey(String password, String salt, int c, int dkLen) {
-    var PRF = hash.newInstance();
-    PRF.add([1, 2, 3]);
-    var blockSize = PRF.close().length;
+    var blockSize = hash.convert([1, 2, 3]).bytes.length;
     if (dkLen > ((2 << 31) - 1) * blockSize) {
       throw "derived key too long";
     }
@@ -32,27 +30,26 @@ class PBKDF2 {
   }
 
   List<int> _computeBlock(String password, String salt, int iterations, int blockNumber) {
-    var hmac = new HMAC(hash, password.codeUnits);
-    hmac.add(salt.codeUnits);
-    _writeBlockNumber(hmac, blockNumber);
-    var lastDigest = hmac.close();
+    var hmac = new Hmac(hash, password.codeUnits);
+    var list = new List<int>.from(salt.codeUnits);
+    _writeBlockNumber(list, blockNumber);
+    var lastDigest = hmac.convert(list).bytes;
     var result = lastDigest;
     for (var i = 1; i < iterations; i++) {
-      hmac = new HMAC(hash, password.codeUnits);
-      hmac.add(lastDigest);
-      var newDigest = hmac.close();
+      hmac = new Hmac(hash, password.codeUnits);
+      var newDigest = hmac.convert(lastDigest).bytes;
       _xorLists(result, newDigest);
       lastDigest = newDigest;
     }
     return result;
   }
 
-  _writeBlockNumber(HMAC hmac, int blockNumber) {
+  _writeBlockNumber(List<int> list, int blockNumber) {
     _blockList[0] = blockNumber >> 24;
     _blockList[1] = blockNumber >> 16;
     _blockList[2] = blockNumber >> 8;
     _blockList[3] = blockNumber;
-    hmac.add(_blockList);
+    list.addAll(_blockList);
   }
 
   _xorLists(List<int> list1, List<int> list2) {
