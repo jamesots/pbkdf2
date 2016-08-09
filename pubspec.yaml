@@ -6,4 +6,4 @@ description: Implementation of PBKDF2 key derivation function
 dependencies:
   crypto: ">=1.0.0 <3.0.0"
 dev_dependencies:
-  unittest: ">=0.10.0 <0.11.0"
+  test: '>=0.12.15+3 <0.13.0'
