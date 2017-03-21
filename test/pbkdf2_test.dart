@@ -11,6 +11,8 @@ List<int> encodeBytes(String bytes) {
   return result;
 }
 
+/// The following test cases come from this RFC:
+/// https://www.ietf.org/rfc/rfc6070.txt
 void main() {
   group("PBKDF2", () {
     test("Should disallow large values of dkLen", () {
