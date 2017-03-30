@@ -1,5 +1,5 @@
 import 'package:pbkdf2/pbkdf2.dart';
-import 'package:unittest/unittest.dart';
+import 'package:test/test.dart';
 import 'package:crypto/crypto.dart';
 
 List<int> encodeBytes(String bytes) {
