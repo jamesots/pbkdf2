@@ -7,6 +7,7 @@ import 'dart:convert';
 class PBKDF2 {
   Hash hash;
   List<int> _blockList = new List<int>(4);
+  int _prfLengthInBytes = null;
 
   PBKDF2({this.hash});
 
@@ -31,6 +32,10 @@ class PBKDF2 {
   }
 
   int get prfLengthInBytes {
+    if (_prfLengthInBytes != null) {
+      return _prfLengthInBytes;
+    }
+
     var digest = hash.convert([1, 2, 3]);
     var digestLength = digest.bytes.length;
     return digestLength;
