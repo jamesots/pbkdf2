@@ -1,10 +1,10 @@
 import 'package:pbkdf2/pbkdf2.dart';
-import 'package:test/test.dart';
+import 'package:unittest/unittest.dart';
 import 'package:crypto/crypto.dart';
 
 List<int> encodeBytes(String bytes) {
   var byteList = bytes.split(" ");
-  var result = <int>[];
+  var result = [];
   for (var byte in byteList) {
     result.add(int.parse(byte, radix: 16));
   }
