@@ -1,101 +1,108 @@
-library pbkdf2;
+import 'dart:convert';
+import 'dart:typed_data';
+import 'dart:math';
 
 import 'package:crypto/crypto.dart';
-import 'dart:convert';
 
-// Reference https://tools.ietf.org/html/rfc2898#page-9
+/// Instances of this type perform one-way cryptographic hashing using the PBKDF2 algorithm.
+///
+/// https://en.wikipedia.org/wiki/PBKDF2
 class PBKDF2 {
-  Hash hash;
-  List<int> _blockList = new List<int>(4);
-  int _prfLengthInBytes = null;
+  /// Creates instance capable of generating hash.
+  ///
+  /// [hashAlgorithm] defaults to [sha256].
+  PBKDF2({Hash hashAlgorithm}) {
+    this.hashAlgorithm = hashAlgorithm ?? sha256;
+  }
 
-  PBKDF2({this.hash});
+  Hash get hashAlgorithm => _hashAlgorithm;
+  set hashAlgorithm(Hash algorithm) {
+    _hashAlgorithm = algorithm;
+    _blockSize = _hashAlgorithm.convert([1, 2, 3]).bytes.length;
+  }
 
-  List<int> generateKey(String password, String salt, int c, int dkLen) {
-    if (dkLen > (2 << 31 - 1) * prfLengthInBytes) {
-      throw "derived key too long";
+  Hash _hashAlgorithm;
+  int _blockSize;
+
+  /// Hashes a password with a given salt.
+  ///
+  /// The returned value is often base64 encoded for storage.
+  List<int> generateKey(
+      String password, String salt, int rounds, int keyLength) {
+    if (keyLength > (pow(2, 32) - 1) * _blockSize) {
+      throw new PBKDF2Exception("Derived key too long");
     }
 
-    var numberOfBlocks = (dkLen / prfLengthInBytes).ceil();
-    var sizeOfLastBlock = dkLen - (numberOfBlocks - 1) * prfLengthInBytes;
+    var numberOfBlocks = (keyLength / _blockSize).ceil();
+    var hmac = new Hmac(hashAlgorithm, UTF8.encode(password));
+    var key = new ByteData(keyLength);
+    var offset = 0;
 
-    var key = <int>[];
-    for (var i = 1; i <= numberOfBlocks; ++i) {
-      var block = _computeBlock(password, salt, c, i);
-      if (i < numberOfBlocks) {
-        key.addAll(block);
-      } else {
-        key.addAll(block.sublist(0, sizeOfLastBlock));
+    var saltBytes = UTF8.encode(salt);
+    var saltLength = saltBytes.length;
+    var inputBuffer = new ByteData(saltBytes.length + 4)
+      ..buffer.asUint8List().setRange(0, saltBytes.length, saltBytes);
+
+    for (var blockNumber = 1; blockNumber <= numberOfBlocks; blockNumber++) {
+      inputBuffer.setUint8(saltLength, blockNumber >> 24);
+      inputBuffer.setUint8(saltLength + 1, blockNumber >> 16);
+      inputBuffer.setUint8(saltLength + 2, blockNumber >> 8);
+      inputBuffer.setUint8(saltLength + 3, blockNumber);
+
+      var block = _XORDigestSink.generate(inputBuffer, hmac, rounds);
+      var blockLength = _blockSize;
+      if (offset + blockLength > keyLength) {
+        blockLength = keyLength - offset;
       }
-    }
-    return key;
-  }
+      key.buffer.asUint8List().setRange(offset, offset + blockLength, block);
 
-  int get prfLengthInBytes {
-    if (_prfLengthInBytes != null) {
-      return _prfLengthInBytes;
+      offset += blockLength;
     }
 
-    var digest = hash.convert([1, 2, 3]);
-    var digestLength = digest.bytes.length;
-    return digestLength;
-  }
-
-  List<int> _computeBlock(
-      String password, String salt, int iterations, int blockNumber) {
-    var hmac = new Hmac(hash, password.codeUnits);
-    var sink = new SyncChunkedConversionSink();
-    var outsink = hmac.startChunkedConversion(sink);
-
-    outsink.add(salt.codeUnits);
-
-    _writeBlockNumber(outsink, blockNumber);
-
-    outsink.close();
-    sink.close();
-
-    var bytes = sink.getAll();
-    var lastDigest = bytes;
-    var result = new List.from(bytes);
-
-    for (var i = 1; i < iterations; i++) {
-      hmac = new Hmac(hash, password.codeUnits);
-      var newDigest = hmac.convert(lastDigest);
-
-      _xorLists(result, newDigest.bytes);
-
-      lastDigest = newDigest.bytes;
-    }
-
-    return result;
-  }
-
-  void _writeBlockNumber(ByteConversionSink hmac, int blockNumber) {
-    _blockList[0] = blockNumber >> 24;
-    _blockList[1] = blockNumber >> 16;
-    _blockList[2] = blockNumber >> 8;
-    _blockList[3] = blockNumber;
-    hmac.add(_blockList);
-  }
-
-  void _xorLists(List<int> list1, List<int> list2) {
-    for (var i = 0; i < list1.length; i++) {
-      list1[i] = list1[i] ^ list2[i];
-    }
+    return key.buffer.asUint8List();
   }
 }
 
-class SyncChunkedConversionSink extends ChunkedConversionSink<Digest> {
-  final List<Digest> accumulated = <Digest>[];
+class PBKDF2Exception implements Exception {
+  PBKDF2Exception(this.message);
+  String message;
 
   @override
-  void add(Digest chunk) {
-    accumulated.add(chunk);
+  String toString() => "PBKDF2Exception: $message";
+}
+
+class _XORDigestSink extends Sink<Digest> {
+  _XORDigestSink(ByteData inputBuffer, Hmac hmac) {
+    lastDigest = hmac.convert(inputBuffer.buffer.asUint8List()).bytes;
+    bytes = new ByteData(lastDigest.length)
+      ..buffer.asUint8List().setRange(0, lastDigest.length, lastDigest);
+  }
+
+  static Uint8List generate(ByteData inputBuffer, Hmac hmac, int rounds) {
+    var hashSink = new _XORDigestSink(inputBuffer, hmac);
+
+    // If rounds == 1, we have already run the first hash in the constructor
+    // so this loop won't run.
+    for (var round = 1; round < rounds; round++) {
+      var hmacSink = hmac.startChunkedConversion(hashSink);
+      hmacSink.add(hashSink.lastDigest);
+      hmacSink.close();
+    }
+
+    return hashSink.bytes.buffer.asUint8List();
+  }
+
+  ByteData bytes;
+  Uint8List lastDigest;
+
+  @override
+  void add(Digest digest) {
+    lastDigest = digest.bytes;
+    for (var i = 0; i < digest.bytes.length; i++) {
+      bytes.setUint8(i, bytes.getUint8(i) ^ lastDigest[i]);
+    }
   }
 
   @override
   void close() {}
-
-  List<int> getAll() =>
-      accumulated.fold([], (acc, current) => acc..addAll(current.bytes));
 }
