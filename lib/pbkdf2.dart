@@ -4,11 +4,11 @@ import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 
-/// Instances of this type perform one-way cryptographic hashing using the PBKDF2 algorithm.
+/// Instances of this type derive a key from a password, salt, and hashing function.
 ///
 /// https://en.wikipedia.org/wiki/PBKDF2
 class PBKDF2 {
-  /// Creates instance capable of generating hash.
+  /// Creates instance capable of generating a key.
   ///
   /// [hashAlgorithm] defaults to [sha256].
   PBKDF2({Hash hashAlgorithm}) {
