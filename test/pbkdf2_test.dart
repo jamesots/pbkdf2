@@ -4,7 +4,7 @@ import 'package:crypto/crypto.dart';
 
 List<int> encodeBytes(String bytes) {
   var byteList = bytes.split(" ");
-  var result = [];
+  var result = new List<int>();
   for (var byte in byteList) {
     result.add(int.parse(byte, radix: 16));
   }
