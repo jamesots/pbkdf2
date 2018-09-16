@@ -7,7 +7,7 @@ import 'dart:convert';
 class PBKDF2 {
   Hash hash;
   List<int> _blockList = new List<int>(4);
-  int _prfLengthInBytes = null;
+  int _prfLengthInBytes;
 
   PBKDF2({this.hash});
 
@@ -56,7 +56,7 @@ class PBKDF2 {
 
     var bytes = sink.getAll();
     var lastDigest = bytes;
-    var result = new List.from(bytes);
+    List<int> result = new List.from(bytes);
 
     for (var i = 1; i < iterations; i++) {
       hmac = new Hmac(hash, password.codeUnits);
